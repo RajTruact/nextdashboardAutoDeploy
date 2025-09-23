@@ -1,45 +1,122 @@
 "use client";
 import { createContext, useState, useContext, useEffect } from "react";
+import axios from "axios";
 
 const ThemeContext = createContext(undefined);
+
+// Catalyst API endpoints
+const CATALYST_API = {
+  get: "https://your-catalyst-domain.com/theme",
+  update: "https://your-catalyst-domain.com/theme"
+};
 
 export const ThemeProvider = ({ children }) => {
   const [theme, setTheme] = useState("light");
   const [colors, setColors] = useState({
-    primaryColor: "#465fff",
-    secondaryColor: "#ee46bc",
-    tertiaryColor: "#91ff47",
-    successColor: "#12b76a", // No Need// No Need
-    errorColor: "#f04438", // No Need
-    warningColor: "#f79009", // No Need
+    primaryColor: "#3b82f6",
+    secondaryColor: "#8b5cf6",
+    tertiaryColor: "#10b981",
   });
   const [isInitialized, setIsInitialized] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
+  // Fetch theme from Catalyst API using Axios
+  const fetchThemeFromAPI = async () => {
+    try {
+      setIsLoading(true);
+      const response = await axios.get(CATALYST_API.get);
+      
+      const result = response.data;
+      
+      // Extract colors from Catalyst response format
+      if (result && result.length > 0) {
+        const themeData = result[0];
+        const newColors = {
+          primaryColor: themeData.primaryColor || "#3b82f6",
+          secondaryColor: themeData.secondaryColor || "#8b5cf6",
+          tertiaryColor: themeData.tertiaryColor || "#10b981",
+        };
+        
+        setColors(newColors);
+        applyColorVariables(newColors);
+        localStorage.setItem("themeColors", JSON.stringify(newColors));
+        
+        return newColors;
+      }
+    } catch (error) {
+      console.error("Failed to fetch theme from API:", error);
+      // Use localStorage fallback
+      const savedColors = localStorage.getItem("themeColors");
+      if (savedColors) {
+        const parsedColors = JSON.parse(savedColors);
+        setColors(parsedColors);
+        applyColorVariables(parsedColors);
+        return parsedColors;
+      }
+    } finally {
+      setIsLoading(false);
+    }
+    return null;
+  };
+
+  // Update theme in Catalyst API using Axios
+  const updateThemeInAPI = async (newColors) => {
+    try {
+      const response = await axios.patch(CATALYST_API.update, newColors);
+      
+      if (response.data) {
+        console.log("Theme updated successfully in Catalyst");
+        return true;
+      }
+    } catch (error) {
+      console.error("Failed to update theme in API:", error);
+      throw error;
+    }
+    return false;
+  };
+
+  // Apply CSS variables to document
+  const applyColorVariables = (colorObj) => {
+    if (typeof window !== "undefined") {
+      const root = document.documentElement;
+
+      // Apply base colors
+      if (colorObj.primaryColor) {
+        root.style.setProperty("--color-primary-500", colorObj.primaryColor);
+        generateAndApplyShades(colorObj.primaryColor, "primary");
+      }
+
+      if (colorObj.secondaryColor) {
+        root.style.setProperty("--color-secondary-500", colorObj.secondaryColor);
+        generateAndApplyShades(colorObj.secondaryColor, "secondary");
+      }
+
+      if (colorObj.tertiaryColor) {
+        root.style.setProperty("--color-tertiary-500", colorObj.tertiaryColor);
+        generateAndApplyShades(colorObj.tertiaryColor, "tertiary");
+      }
+    }
+  };
+
+  // Generate and apply color shades
+  const generateAndApplyShades = (baseColor, colorName) => {
+    const root = document.documentElement;
+    const shades = generateShadesFromBase(baseColor);
+
+    Object.keys(shades).forEach((shade) => {
+      root.style.setProperty(`--color-${colorName}-${shade}`, shades[shade]);
+    });
+  };
+
+  // Initialize theme
   useEffect(() => {
     const initializeTheme = async () => {
       try {
         const savedTheme = localStorage.getItem("theme");
-        const savedColors = localStorage.getItem("themeColors");
         const initialTheme = savedTheme || "light";
 
-        // Try to get colors from API
-        try {
-          const response = await fetch(
-            "https://first-test-10103020174.development.catalystappsail.com/theme"
-          );
-          if (response.ok) {
-            const apiColors = await response.json();
-            setColors((prev) => ({ ...prev, ...apiColors }));
-            localStorage.setItem("themeColors", JSON.stringify(apiColors));
-          } else if (savedColors) {
-            setColors(JSON.parse(savedColors));
-          }
-        } catch (error) {
-          console.log("Using default colors, API not available");
-          if (savedColors) {
-            setColors(JSON.parse(savedColors));
-          }
-        }
+        // Fetch theme from API
+        await fetchThemeFromAPI();
 
         setTheme(initialTheme);
         setIsInitialized(true);
@@ -53,18 +130,17 @@ export const ThemeProvider = ({ children }) => {
     initializeTheme();
   }, []);
 
+  // Apply theme when it changes
   useEffect(() => {
     if (isInitialized) {
       localStorage.setItem("theme", theme);
 
-      // Apply theme class
       if (theme === "dark") {
         document.documentElement.classList.add("dark");
       } else {
         document.documentElement.classList.remove("dark");
       }
 
-      // Apply color CSS variables
       applyColorVariables(colors);
     }
   }, [theme, colors, isInitialized]);
@@ -74,57 +150,38 @@ export const ThemeProvider = ({ children }) => {
   };
 
   const updateColors = async (newColors) => {
-    const updatedColors = { ...colors, ...newColors };
-    setColors(updatedColors);
-    localStorage.setItem("themeColors", JSON.stringify(updatedColors));
-
-    // Apply immediately
-    applyColorVariables(updatedColors);
-
-    // Send update to API
     try {
-      await fetch(
-        "https://first-test-10103020174.development.catalystappsail.com/theme",
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(updatedColors),
-        }
-      );
+      const updatedColors = { ...colors, ...newColors };
+      
+      // Update local state immediately
+      setColors(updatedColors);
+      localStorage.setItem("themeColors", JSON.stringify(updatedColors));
+      applyColorVariables(updatedColors);
+
+      // Update in Catalyst API
+      await updateThemeInAPI(updatedColors);
+      
     } catch (error) {
       console.error("Failed to update theme colors:", error);
+      throw error;
     }
   };
 
-  const applyColorVariables = (colorObj) => {
-    const root = document.documentElement;
-
-    // Apply base colors
-    root.style.setProperty("--color-brand-500", colorObj.primaryColor);
-    root.style.setProperty("--color-theme-pink-500", colorObj.secondaryColor);
-    root.style.setProperty("--color-success-500", colorObj.successColor);
-    root.style.setProperty("--color-error-500", colorObj.errorColor);
-    root.style.setProperty("--color-warning-500", colorObj.warningColor);
-
-    // Generate and apply shades for primary color
-    generateColorShades(colorObj.primaryColor, "brand");
-    generateColorShades(colorObj.secondaryColor, "theme-pink");
-  };
-
-  const generateColorShades = (baseColor, colorName) => {
-    const root = document.documentElement;
-    const shades = generateShadesFromBase(baseColor);
-
-    Object.keys(shades).forEach((shade) => {
-      root.style.setProperty(`--color-${colorName}-${shade}`, shades[shade]);
-    });
+  const refreshTheme = async () => {
+    return await fetchThemeFromAPI();
   };
 
   return (
     <ThemeContext.Provider
-      value={{ theme, colors, toggleTheme, updateColors, isInitialized }}
+      value={{
+        theme,
+        colors,
+        toggleTheme,
+        updateColors,
+        refreshTheme,
+        isInitialized,
+        isLoading
+      }}
     >
       {children}
     </ThemeContext.Provider>
@@ -144,15 +201,10 @@ function hexToRgb(hex) {
 }
 
 function rgbToHex(r, g, b) {
-  return (
-    "#" +
-    [r, g, b]
-      .map((x) => {
-        const hex = x.toString(16);
-        return hex.length === 1 ? "0" + hex : hex;
-      })
-      .join("")
-  );
+  return "#" + [r, g, b].map(x => {
+    const hex = x.toString(16);
+    return hex.length === 1 ? "0" + hex : hex;
+  }).join("");
 }
 
 function lightenColor(rgb, amount) {

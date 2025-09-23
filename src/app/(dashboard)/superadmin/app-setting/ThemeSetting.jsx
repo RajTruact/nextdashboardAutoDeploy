@@ -1,175 +1,94 @@
-// app/super-admin/theme/page.js
 "use client";
 import { useState, useEffect } from "react";
+import axios from "axios";
+import { useTheme } from "@/src/context/ThemeContext";
 
 export default function ThemeCustomizationPage() {
-  const [userRole, setUserRole] = useState("superAdmin"); // This would come from your auth system
+  const { colors, updateColors, refreshTheme, isLoading } = useTheme();
+  const [userRole, setUserRole] = useState("superAdmin");
   const [themeSettings, setThemeSettings] = useState({
-    primaryColor: "#465fff",
-    secondaryColor: "#ee46bc",
-    tertiaryColor: "#91ff47",
+    primaryColor: "#3b82f6",
+    secondaryColor: "#8b5cf6",
+    tertiaryColor: "#10b981",
   });
   const [isSaved, setIsSaved] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isInitialized, setIsInitialized] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
 
-  // API endpoint from your Catalyst app
-  const API_URL =
-    "https://first-test-10103020174.development.catalystappsail.com/theme";
+  // Sync local state with context
+  useEffect(() => {
+    setThemeSettings(colors);
+  }, [colors]);
 
-  // Define the color variables that can be customized
   const colorVariables = [
     {
       name: "Primary Color",
       key: "primaryColor",
-      value: "#465FFF",
       description: "Main brand color for primary actions and buttons",
     },
     {
       name: "Secondary Color",
       key: "secondaryColor",
-      value: "#EE46BC",
       description: "Secondary accent color for highlights",
     },
     {
       name: "Tertiary Color",
       key: "tertiaryColor",
-      value: "#91FF47",
       description: "Tertiary color for additional accents",
     },
   ];
 
-  // Fetch theme settings from Catalyst API
-  const fetchThemeSettings = async () => {
-    try {
-      setIsLoading(true);
-      const response = await fetch(API_URL);
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-
-      // Extract theme settings from the API response format
-      if (data && data.length > 0 && data[0].Theme_Settings) {
-        setThemeSettings(data[0].Theme_Settings);
-
-        // Apply colors immediately
-        applyColorsToDocument(data[0].Theme_Settings);
-      }
-    } catch (error) {
-      console.error("Failed to fetch theme settings:", error);
-      // Fallback to default colors
-      applyColorsToDocument(themeSettings);
-    } finally {
-      setIsLoading(false);
-      setIsInitialized(true);
-    }
-  };
-
-  // Save theme settings to Catalyst API
-  const saveThemeSettings = async (settings) => {
-    try {
-      setIsLoading(true);
-
-      const response = await fetch(API_URL, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          Theme_Settings: settings,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const result = await response.json();
-      console.log("Theme saved successfully:", result);
-      return true;
-    } catch (error) {
-      console.error("Failed to save theme settings:", error);
-      throw error;
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Apply colors to CSS variables
-  const applyColorsToDocument = (colors) => {
-    if (typeof window !== "undefined") {
-      const root = document.documentElement;
-
-      // Apply base colors
-      if (colors.primaryColor) {
-        root.style.setProperty("--color-brand-500", colors.primaryColor);
-        generateAndApplyShades(colors.primaryColor, "brand");
-      }
-
-      if (colors.secondaryColor) {
-        root.style.setProperty("--color-theme-pink-500", colors.secondaryColor);
-        generateAndApplyShades(colors.secondaryColor, "theme-pink");
-      }
-
-      if (colors.tertiaryColor) {
-        root.style.setProperty("--color-success-500", colors.tertiaryColor);
-        generateAndApplyShades(colors.tertiaryColor, "success");
-      }
-    }
-  };
-
-  // Generate color shades from base color
-  const generateAndApplyShades = (baseColor, colorName) => {
-    const root = document.documentElement;
-    const shades = generateShadesFromBase(baseColor);
-
-    Object.keys(shades).forEach((shade) => {
-      root.style.setProperty(`--color-${colorName}-${shade}`, shades[shade]);
-    });
-  };
-
-  // Initialize theme settings
-  useEffect(() => {
-    fetchThemeSettings();
-  }, []);
-
   const handleColorChange = (key, value) => {
     const newSettings = { ...themeSettings, [key]: value };
     setThemeSettings(newSettings);
-
-    // Apply changes immediately for preview
-    applyColorsToDocument(newSettings);
   };
 
   const saveTheme = async () => {
     try {
-      await saveThemeSettings(themeSettings);
+      setIsUpdating(true);
+      await updateColors(themeSettings);
       setIsSaved(true);
       setTimeout(() => setIsSaved(false), 3000);
     } catch (error) {
+      console.error("Failed to save theme:", error);
       alert("Failed to save theme changes. Please try again.");
+    } finally {
+      setIsUpdating(false);
     }
   };
 
-  const resetTheme = () => {
+  const resetTheme = async () => {
     const defaultSettings = {
-      primaryColor: "#465fff",
-      secondaryColor: "#ee46bc",
-      tertiaryColor: "#91ff47",
+      primaryColor: "#3b82f6",
+      secondaryColor: "#8b5cf6",
+      tertiaryColor: "#10b981",
     };
 
     setThemeSettings(defaultSettings);
-    applyColorsToDocument(defaultSettings);
+    
+    try {
+      setIsUpdating(true);
+      await updateColors(defaultSettings);
+    } catch (error) {
+      console.error("Failed to reset theme:", error);
+      alert("Failed to reset theme. Please try again.");
+    } finally {
+      setIsUpdating(false);
+    }
+  };
 
-    // Also reset in the database
-    saveThemeSettings(defaultSettings).catch(console.error);
+  const refreshFromAPI = async () => {
+    try {
+      setIsUpdating(true);
+      await refreshTheme();
+    } catch (error) {
+      console.error("Failed to refresh theme:", error);
+    } finally {
+      setIsUpdating(false);
+    }
   };
 
   const ColorPicker = ({ color }) => (
-    <div className="flex flex-col gap-3 p-4 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-md transition-shadow">
+    <div className="flex flex-col gap-3 p-4 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1">
           <label className="text-sm font-medium text-gray-700 dark:text-gray-300 block mb-1">
@@ -183,247 +102,138 @@ export default function ThemeCustomizationPage() {
         </div>
         <div className="flex items-center gap-2">
           <span className="text-xs text-gray-500 dark:text-gray-400 font-mono">
-            {themeSettings[color.key] || color.value}
+            {themeSettings[color.key]}
           </span>
           <div
-            className="w-6 h-6 rounded border border-gray-300 dark:border-gray-600 shadow-sm"
-            style={{ backgroundColor: themeSettings[color.key] || color.value }}
+            className="w-6 h-6 rounded border border-gray-300 dark:border-gray-600"
+            style={{ backgroundColor: themeSettings[color.key] }}
           ></div>
         </div>
       </div>
 
       <input
         type="color"
-        value={themeSettings[color.key] || color.value}
+        value={themeSettings[color.key]}
         onChange={(e) => handleColorChange(color.key, e.target.value)}
-        className="w-full h-10 cursor-pointer rounded-md border border-gray-300 dark:border-gray-600"
+        className="w-full h-10 cursor-pointer rounded border border-gray-300 dark:border-gray-600"
       />
       <input
         type="text"
-        value={themeSettings[color.key] || color.value}
+        value={themeSettings[color.key]}
         onChange={(e) => handleColorChange(color.key, e.target.value)}
-        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+        className="w-full px-3 py-2 text-sm border border-gray-300 rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white"
         placeholder="Enter hex code"
       />
     </div>
   );
 
-  // If not superAdmin, show access denied
   if (userRole !== "superAdmin") {
     return (
-      <div className="flex items-center justify-center bg-gray-50 dark:bg-gray-900 p-4">
+      <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900 p-4">
         <div className="max-w-md w-full p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md">
           <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-4">
             Access Denied
           </h2>
           <p className="text-gray-600 dark:text-gray-300">
-            You don't have permission to customize the theme. Only superAdmins
-            can access this feature.
+            You don't have permission to customize the theme.
           </p>
         </div>
       </div>
     );
   }
 
-  if (!isInitialized || isLoading) {
+  if (isLoading) {
     return (
-      <div className=" flex items-center justify-center bg-gray-50 dark:bg-gray-900 mt-4">
-        <div className="w-full p-6 space-y-6">
-          {/* Page title shimmer */}
-          <div className="h-6 w-1/3 rounded-md bg-gray-300 dark:bg-gray-700 animate-pulse"></div>
-          <div className="h-4 w-2/3 rounded-md bg-gray-200 dark:bg-gray-600 animate-pulse"></div>
-
-          {/* 3 color pickers shimmer */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {[1, 2, 3].map((i) => (
-              <div
-                key={i}
-                className="rounded-lg bg-gray-100 dark:bg-gray-800 p-6 space-y-4 animate-pulse"
-              >
-                <div className="h-4 w-1/2 rounded-md bg-gray-300 dark:bg-gray-700"></div>
-                <div className="h-3 w-2/3 rounded-md bg-gray-200 dark:bg-gray-600"></div>
-                <div className="h-10 w-full rounded-md bg-gray-300 dark:bg-gray-700"></div>
-                <div className="h-6 w-1/2 rounded-md bg-gray-200 dark:bg-gray-600"></div>
-              </div>
-            ))}
-          </div>
-
-          {/* Buttons shimmer */}
-          <div className="flex gap-4">
-            <div className="h-10 w-40 rounded-lg bg-gray-300 dark:bg-gray-700 animate-pulse"></div>
-            <div className="h-10 w-40 rounded-lg bg-gray-200 dark:bg-gray-600 animate-pulse"></div>
-          </div>
-        </div>
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500"></div>
       </div>
     );
   }
 
   return (
-    <div className="bg-gray-50 dark:bg-[#16181D] p-4 md:p-6 rounded-xl mt-2">
-      <div className=" mx-auto">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 md:p-6">
+      <div className="max-w-6xl mx-auto">
         <div className="mb-8">
-          <h1 className="text-md md:text-2xl font-bold text-gray-800 dark:text-white mb-2">
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-800 dark:text-white mb-2">
             Theme Customization
           </h1>
           <p className="text-gray-600 dark:text-gray-400">
-            Customize your application's color scheme. Changes are saved to the
-            database and applied globally.
+            Customize your application's color scheme. Changes are saved to the database and applied globally.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           {colorVariables.map((color) => (
             <ColorPicker key={color.key} color={color} />
           ))}
         </div>
 
-        <div className="flex flex-col sm:flex-row gap-4 p-6 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+        <div className="flex flex-wrap gap-4 p-6 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
           <button
             onClick={saveTheme}
-            disabled={isLoading}
-            className="px-6 py-3 bg-brand-500 hover:bg-brand-600 disabled:bg-gray-400 text-white rounded-lg font-medium transition-colors flex items-center justify-center disabled:cursor-not-allowed"
+            disabled={isUpdating}
+            className="px-6 py-3 bg-primary-500 hover:bg-primary-600 disabled:bg-gray-400 text-white rounded-lg font-medium transition-colors flex items-center justify-center"
           >
-            {isLoading ? (
+            {isUpdating ? (
               <>
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
                 Saving...
               </>
             ) : (
-              "Save to Database"
+              "Save Theme"
             )}
           </button>
 
           <button
             onClick={resetTheme}
-            disabled={isLoading}
-            className="px-6 py-3 bg-gray-100 hover:bg-gray-200 disabled:bg-gray-300 text-gray-800 rounded-lg font-medium transition-colors flex items-center justify-center dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-white disabled:cursor-not-allowed"
+            disabled={isUpdating}
+            className="px-6 py-3 bg-gray-100 hover:bg-gray-200 disabled:bg-gray-300 text-gray-800 rounded-lg font-medium transition-colors dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-white"
           >
             Reset to Default
           </button>
 
+          <button
+            onClick={refreshFromAPI}
+            disabled={isUpdating}
+            className="px-6 py-3 bg-secondary-500 hover:bg-secondary-600 text-white rounded-lg font-medium transition-colors"
+          >
+            Refresh from API
+          </button>
+
           {isSaved && (
-            <div className="ml-auto flex items-center px-4 py-3 bg-success-50 text-success-700 rounded-lg border border-success-200 dark:bg-success-500/20 dark:text-success-400 dark:border-success-500/30">
-              <svg
-                className="w-5 h-5 mr-2"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M5 13l4 4L19 7"
-                ></path>
-              </svg>
-              Theme saved to database!
+            <div className="ml-auto flex items-center px-4 py-3 bg-green-50 text-green-700 rounded-lg border border-green-200 dark:bg-green-500/20 dark:text-green-400">
+              ✅ Theme saved successfully!
             </div>
           )}
         </div>
 
-        <div className="mt-6 p-4 bg-blue-50 rounded-lg dark:bg-blue-900/20">
-          <p className="text-sm text-blue-600 dark:text-blue-300">
-            <span className="font-semibold">Note:</span> These theme settings
-            will affect the entire application.
-          </p>
-        </div>
-
-        {/* Preview Section */}
-        {/* <div className="mt-8 p-6 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+        {/* Live Preview */}
+        <div className="mt-8 p-6 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
           <h2 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">
             Live Preview
           </h2>
-
+          
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-4">
-              <button className="w-full px-4 py-2 bg-brand-500 hover:bg-brand-600 text-white rounded-lg transition-colors">
+              <button className="w-full px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white rounded transition-colors">
                 Primary Button
               </button>
-
-              <div className="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                <p className="text-gray-700 dark:text-gray-300">
-                  Card background
-                </p>
+              <div className="p-4 bg-primary-50 dark:bg-primary-500/20 rounded">
+                <p className="text-primary-700 dark:text-primary-300">Primary background</p>
               </div>
             </div>
-
+            
             <div className="space-y-4">
-              <div className="flex items-center gap-3 p-3 bg-success-50 dark:bg-success-500/20 rounded-lg">
-                <div className="w-3 h-3 rounded-full bg-success-500"></div>
-                <span className="text-success-700 dark:text-success-400 text-sm">
-                  Success state
-                </span>
-              </div>
-
-              <div className="p-3 border border-brand-200 bg-brand-50 dark:bg-brand-500/20 rounded-lg">
-                <p className="text-brand-700 dark:text-brand-300">
-                  Brand accent
-                </p>
+              <button className="w-full px-4 py-2 bg-secondary-500 hover:bg-secondary-600 text-white rounded transition-colors">
+                Secondary Button
+              </button>
+              <div className="p-4 bg-secondary-50 dark:bg-secondary-500/20 rounded">
+                <p className="text-secondary-700 dark:text-secondary-300">Secondary background</p>
               </div>
             </div>
           </div>
-        </div> */}
+        </div>
       </div>
     </div>
   );
-}
-
-// Color shade generation functions (same as before)
-function hexToRgb(hex) {
-  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-  return result
-    ? {
-        r: parseInt(result[1], 16),
-        g: parseInt(result[2], 16),
-        b: parseInt(result[3], 16),
-      }
-    : null;
-}
-
-function rgbToHex(r, g, b) {
-  return (
-    "#" +
-    [r, g, b]
-      .map((x) => {
-        const hex = x.toString(16);
-        return hex.length === 1 ? "0" + hex : hex;
-      })
-      .join("")
-  );
-}
-
-function lightenColor(rgb, amount) {
-  return {
-    r: Math.min(255, rgb.r + Math.round(255 * amount)),
-    g: Math.min(255, rgb.g + Math.round(255 * amount)),
-    b: Math.min(255, rgb.b + Math.round(255 * amount)),
-  };
-}
-
-function darkenColor(rgb, amount) {
-  return {
-    r: Math.max(0, rgb.r - Math.round(255 * amount)),
-    g: Math.max(0, rgb.g - Math.round(255 * amount)),
-    b: Math.max(0, rgb.b - Math.round(255 * amount)),
-  };
-}
-
-function generateShadesFromBase(baseColor) {
-  const baseRgb = hexToRgb(baseColor);
-  if (!baseRgb) return {};
-
-  return {
-    25: rgbToHex(...Object.values(lightenColor(baseRgb, 0.9))),
-    50: rgbToHex(...Object.values(lightenColor(baseRgb, 0.8))),
-    100: rgbToHex(...Object.values(lightenColor(baseRgb, 0.6))),
-    200: rgbToHex(...Object.values(lightenColor(baseRgb, 0.4))),
-    300: rgbToHex(...Object.values(lightenColor(baseRgb, 0.2))),
-    400: rgbToHex(...Object.values(lightenColor(baseRgb, 0.1))),
-    500: baseColor,
-    600: rgbToHex(...Object.values(darkenColor(baseRgb, 0.1))),
-    700: rgbToHex(...Object.values(darkenColor(baseRgb, 0.2))),
-    800: rgbToHex(...Object.values(darkenColor(baseRgb, 0.3))),
-    900: rgbToHex(...Object.values(darkenColor(baseRgb, 0.4))),
-    950: rgbToHex(...Object.values(darkenColor(baseRgb, 0.5))),
-  };
 }
