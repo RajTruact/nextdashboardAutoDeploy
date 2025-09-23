@@ -227,12 +227,32 @@ export default function ThemeCustomizationPage() {
 
   if (!isInitialized || isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-500 mx-auto"></div>
-          <p className="mt-4 text-gray-600 dark:text-gray-400">
-            Loading theme settings...
-          </p>
+      <div className=" flex items-center justify-center bg-gray-50 dark:bg-gray-900 mt-4">
+        <div className="w-full p-6 space-y-6">
+          {/* Page title shimmer */}
+          <div className="h-6 w-1/3 rounded-md bg-gray-300 dark:bg-gray-700 animate-pulse"></div>
+          <div className="h-4 w-2/3 rounded-md bg-gray-200 dark:bg-gray-600 animate-pulse"></div>
+
+          {/* 3 color pickers shimmer */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {[1, 2, 3].map((i) => (
+              <div
+                key={i}
+                className="rounded-lg bg-gray-100 dark:bg-gray-800 p-6 space-y-4 animate-pulse"
+              >
+                <div className="h-4 w-1/2 rounded-md bg-gray-300 dark:bg-gray-700"></div>
+                <div className="h-3 w-2/3 rounded-md bg-gray-200 dark:bg-gray-600"></div>
+                <div className="h-10 w-full rounded-md bg-gray-300 dark:bg-gray-700"></div>
+                <div className="h-6 w-1/2 rounded-md bg-gray-200 dark:bg-gray-600"></div>
+              </div>
+            ))}
+          </div>
+
+          {/* Buttons shimmer */}
+          <div className="flex gap-4">
+            <div className="h-10 w-40 rounded-lg bg-gray-300 dark:bg-gray-700 animate-pulse"></div>
+            <div className="h-10 w-40 rounded-lg bg-gray-200 dark:bg-gray-600 animate-pulse"></div>
+          </div>
         </div>
       </div>
     );
@@ -304,8 +324,7 @@ export default function ThemeCustomizationPage() {
         <div className="mt-6 p-4 bg-blue-50 rounded-lg dark:bg-blue-900/20">
           <p className="text-sm text-blue-600 dark:text-blue-300">
             <span className="font-semibold">Note:</span> These theme settings
-            are stored in your Catalyst database and will affect all users of
-            the application.
+            will affect the entire application.
           </p>
         </div>
 
