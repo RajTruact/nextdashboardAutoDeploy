@@ -8,9 +8,10 @@ export const ThemeProvider = ({ children }) => {
   const [colors, setColors] = useState({
     primaryColor: "#465fff",
     secondaryColor: "#ee46bc",
-    successColor: "#12b76a",
-    errorColor: "#f04438",
-    warningColor: "#f79009",
+    tertiaryColor: "#91ff47",
+    successColor: "#12b76a", // No Need// No Need
+    errorColor: "#f04438", // No Need
+    warningColor: "#f79009", // No Need
   });
   const [isInitialized, setIsInitialized] = useState(false);
 
@@ -23,7 +24,9 @@ export const ThemeProvider = ({ children }) => {
 
         // Try to get colors from API
         try {
-          const response = await fetch("/api/theme");
+          const response = await fetch(
+            "https://first-test-10103020174.development.catalystappsail.com/theme"
+          );
           if (response.ok) {
             const apiColors = await response.json();
             setColors((prev) => ({ ...prev, ...apiColors }));
@@ -80,13 +83,16 @@ export const ThemeProvider = ({ children }) => {
 
     // Send update to API
     try {
-      await fetch("/api/theme", {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(updatedColors),
-      });
+      await fetch(
+        "https://first-test-10103020174.development.catalystappsail.com/theme",
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(updatedColors),
+        }
+      );
     } catch (error) {
       console.error("Failed to update theme colors:", error);
     }
