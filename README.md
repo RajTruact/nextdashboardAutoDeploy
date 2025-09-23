@@ -1,0 +1,1 @@
+# Tailwind Manual Next Js Dashboard 
