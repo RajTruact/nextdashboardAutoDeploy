@@ -220,23 +220,32 @@ function sanitizeHex(val) {
   const sanitized = val.replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
   return sanitized;
 }
-const ColorPicker = ({ default_value = "#1C9488" }) => {
-  // Initialize from controlled prop or a default
+const ColorPicker = ({ default_value = "#1C9488", onChange }) => {
   const [color, setColor] = useState(() => {
     const hex = sanitizeHex(default_value);
     const hsl = hexToHsl({ hex: hex });
     return { ...hsl, hex: sanitizeHex(hex) };
   });
+
   // Update from hex input
   const handleHexInputChange = (newVal) => {
     const hex = sanitizeHex(newVal);
     if (hex.length === 6) {
       const hsl = hexToHsl({ hex });
       setColor({ ...hsl, hex: hex });
+      // Call onChange callback with the hex value (without #)
+      if (onChange) onChange(hex);
     } else if (hex.length < 6) {
       setColor((prev) => ({ ...prev, hex: hex }));
     }
   };
+
+  // Add useEffect to call onChange when color changes via other methods
+  useEffect(() => {
+    if (onChange && color.hex.length === 6) {
+      onChange(color.hex);
+    }
+  }, [color.hex, onChange]);
   return (
     <>
       <style
@@ -296,7 +305,7 @@ const ColorPicker = ({ default_value = "#1C9488" }) => {
           "--thumb-border-color": "#000000",
           "--thumb-ring-color": "#666666",
         }}
-        className="z-30 flex w-full max-w-[300px] select-none flex-col items-center gap-3 overscroll-none rounded-2xl border border-zinc-200 bg-white p-4 shadow-md dark:border-zinc-700 dark:bg-zinc-900"
+        className="z-30 flex mt-5 w-full max-w-[300px] select-none flex-col items-center gap-3 overscroll-none rounded-2xl border border-zinc-200 bg-white p-4 shadow-md dark:border-zinc-700 dark:bg-zinc-900"
       >
         <DraggableColorCanvas
           {...color}

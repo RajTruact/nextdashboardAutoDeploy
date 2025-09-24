@@ -14,13 +14,15 @@ export default function AppSetting() {
         <h3 className="mb-5 text-lg font-semibold text-gray-800 dark:text-white/90 lg:mb-7 capitalize">
           App Settings {role}
         </h3>
-        {/* <ColorPicker /> */}
         <div className="space-y-6">
           <AppSettingCard />
         </div>
         <div className="space-y-6">
           <ThemeCustomizationPage />
         </div>
+        {/* <div className="space-y-6">
+          <ColorPicker default_value="#acff47" />
+        </div> */}
       </div>
     </div>
   );

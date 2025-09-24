@@ -26,17 +26,20 @@ export const ThemeProvider = ({ children }) => {
     try {
       setIsLoading(true);
       const response = await axios.get(CATALYST_API.get);
-
       const result = response.data;
+
+      console.log("API Response:", result); // Debug log
 
       // Extract colors from Catalyst response format
       if (result && result.length > 0) {
-        const themeData = result[0];
+        const themeData = result[0].Theme_Settings; // Access Theme_Settings object
         const newColors = {
-          primaryColor: themeData.primaryColor || "#3b82f6",
-          secondaryColor: themeData.secondaryColor || "#8b5cf6",
-          tertiaryColor: themeData.tertiaryColor || "#10b981",
+          primaryColor: themeData?.primaryColor || "#3b82f6",
+          secondaryColor: themeData?.secondaryColor || "#8b5cf6",
+          tertiaryColor: themeData?.tertiaryColor || "#10b981",
         };
+
+        console.log("Extracted colors:", newColors); // Debug log
 
         setColors(newColors);
         applyColorVariables(newColors);
@@ -54,6 +57,8 @@ export const ThemeProvider = ({ children }) => {
         applyColorVariables(parsedColors);
         return parsedColors;
       }
+      // Use default colors as final fallback
+      applyColorVariables(colors);
     } finally {
       setIsLoading(false);
     }
@@ -61,9 +66,62 @@ export const ThemeProvider = ({ children }) => {
   };
 
   // Update theme in Catalyst API using Axios
+  // Updated updateThemeInAPI function with CORS workaround
+  // const updateThemeInAPI = async (newColors) => {
+  //   try {
+  //     const payload = {
+  //       Theme_Settings: {
+  //         primaryColor: newColors.primaryColor,
+  //         secondaryColor: newColors.secondaryColor,
+  //         tertiaryColor: newColors.tertiaryColor,
+  //       },
+  //     };
+
+  //     // Try POST instead of PATCH (many APIs accept POST for updates)
+  //     let response;
+  //     try {
+  //       response = await axios.post(CATALYST_API.update, payload);
+  //       console.log("Theme updated via POST");
+  //     } catch (postError) {
+  //       // If POST fails, try PUT
+  //       console.log("POST failed, trying PUT...");
+  //       response = await axios.put(CATALYST_API.update, payload);
+  //       console.log("Theme updated via PUT");
+  //     }
+
+  //     if (response.data) {
+  //       console.log("Theme updated successfully in Catalyst");
+  //       return true;
+  //     }
+  //   } catch (error) {
+  //     console.warn(
+  //       "API update failed due to CORS, but applying changes locally..."
+  //     );
+
+  //     // Store the update intent for when CORS is fixed
+  //     const updateRecord = {
+  //       timestamp: new Date().toISOString(),
+  //       colors: newColors,
+  //       status: "pending",
+  //     };
+  //     localStorage.setItem("lastThemeUpdate", JSON.stringify(updateRecord));
+
+  //     // Don't throw error - allow the local update to succeed
+  //     return true;
+  //   }
+  //   return false;
+  // };
+
   const updateThemeInAPI = async (newColors) => {
     try {
-      const response = await axios.patch(CATALYST_API.update, newColors);
+      const payload = {
+        primaryColor: newColors.primaryColor,
+        tertiaryColor: newColors.tertiaryColor,
+        secondaryColor: newColors.secondaryColor,
+      };
+
+      // Try POST instead of PATCH
+      const response = await axios.post(CATALYST_API.update, payload);
 
       if (response.data) {
         console.log("Theme updated successfully in Catalyst");
@@ -71,7 +129,10 @@ export const ThemeProvider = ({ children }) => {
       }
     } catch (error) {
       console.error("Failed to update theme in API:", error);
-      throw error;
+
+      // Fallback: Store locally and apply changes anyway
+      console.log("Applying theme changes locally...");
+      // return true; // Don't throw error, allow local update
     }
     return false;
   };
@@ -81,12 +142,31 @@ export const ThemeProvider = ({ children }) => {
     if (typeof window !== "undefined") {
       const root = document.documentElement;
 
-      // Apply base colors
+      // Apply primary color to both primary and brand variables
       if (colorObj.primaryColor) {
+        // Set the base colors
         root.style.setProperty("--color-primary-500", colorObj.primaryColor);
-        generateAndApplyShades(colorObj.primaryColor, "primary");
+        root.style.setProperty("--color-brand-500", colorObj.primaryColor);
+
+        // Generate and apply shades for both naming conventions
+        const primaryShades = generateShadesFromBase(colorObj.primaryColor);
+        const brandShades = generateShadesFromBase(colorObj.primaryColor);
+
+        // Apply primary shades
+        Object.keys(primaryShades).forEach((shade) => {
+          root.style.setProperty(
+            `--color-primary-${shade}`,
+            primaryShades[shade]
+          );
+        });
+
+        // Apply brand shades (so existing brand CSS variables work)
+        Object.keys(brandShades).forEach((shade) => {
+          root.style.setProperty(`--color-brand-${shade}`, brandShades[shade]);
+        });
       }
 
+      // Apply secondary color
       if (colorObj.secondaryColor) {
         root.style.setProperty(
           "--color-secondary-500",
@@ -95,6 +175,7 @@ export const ThemeProvider = ({ children }) => {
         generateAndApplyShades(colorObj.secondaryColor, "secondary");
       }
 
+      // Apply tertiary color
       if (colorObj.tertiaryColor) {
         root.style.setProperty("--color-tertiary-500", colorObj.tertiaryColor);
         generateAndApplyShades(colorObj.tertiaryColor, "tertiary");
@@ -102,7 +183,7 @@ export const ThemeProvider = ({ children }) => {
     }
   };
 
-  // Generate and apply color shades
+  // Update the shade generation to also create brand shades
   const generateAndApplyShades = (baseColor, colorName) => {
     const root = document.documentElement;
     const shades = generateShadesFromBase(baseColor);
@@ -110,22 +191,31 @@ export const ThemeProvider = ({ children }) => {
     Object.keys(shades).forEach((shade) => {
       root.style.setProperty(`--color-${colorName}-${shade}`, shades[shade]);
     });
+
+    // If we're updating primary, also update brand colors
+    if (colorName === "primary") {
+      Object.keys(shades).forEach((shade) => {
+        root.style.setProperty(`--color-brand-${shade}`, shades[shade]);
+      });
+    }
   };
 
-  // Initialize theme
+  // Initialize theme - RUNS FOR ALL USERS
   useEffect(() => {
     const initializeTheme = async () => {
       try {
         const savedTheme = localStorage.getItem("theme");
         const initialTheme = savedTheme || "light";
 
-        // Fetch theme from API
+        // Fetch theme from API - THIS RUNS FOR EVERY USER
         await fetchThemeFromAPI();
 
         setTheme(initialTheme);
         setIsInitialized(true);
       } catch (error) {
         console.error("Failed to initialize theme:", error);
+        // Apply default colors even if API fails
+        applyColorVariables(colors);
         setTheme("light");
         setIsInitialized(true);
       }
@@ -191,7 +281,7 @@ export const ThemeProvider = ({ children }) => {
   );
 };
 
-// Color shade generation functions
+// Color shade generation functions (keep these the same)
 function hexToRgb(hex) {
   const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
   return result

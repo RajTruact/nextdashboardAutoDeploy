@@ -1,11 +1,10 @@
 "use client";
 import { useState, useEffect } from "react";
-import axios from "axios";
 import { useTheme } from "@/src/context/ThemeContext";
 
 export default function ThemeCustomizationPage() {
   const { colors, updateColors, refreshTheme, isLoading } = useTheme();
-  const [userRole, setUserRole] = useState("superAdmin");
+  const [userRole, setUserRole] = useState("superAdmin"); // You can get this from your auth context
   const [themeSettings, setThemeSettings] = useState({
     primaryColor: "#3b82f6",
     secondaryColor: "#8b5cf6",
@@ -59,12 +58,12 @@ export default function ThemeCustomizationPage() {
   const resetTheme = async () => {
     const defaultSettings = {
       primaryColor: "#3b82f6",
-      secondaryColor: "#8b5cf6",
       tertiaryColor: "#10b981",
+      secondaryColor: "#8b5cf6",
     };
 
     setThemeSettings(defaultSettings);
-    
+
     try {
       setIsUpdating(true);
       await updateColors(defaultSettings);
@@ -127,112 +126,96 @@ export default function ThemeCustomizationPage() {
     </div>
   );
 
-  if (userRole !== "superAdmin") {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900 p-4">
-        <div className="max-w-md w-full p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md">
-          <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-4">
-            Access Denied
-          </h2>
-          <p className="text-gray-600 dark:text-gray-300">
-            You don't have permission to customize the theme.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500"></div>
-      </div>
-    );
-  }
+  // if (userRole !== "superAdmin") {
+  //   return (
+  //     <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900 p-4">
+  //       <div className="max-w-md w-full p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md">
+  //         <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-4">
+  //           Access Denied
+  //         </h2>
+  //         <p className="text-gray-600 dark:text-gray-300">
+  //           You don't have permission to customize the theme.
+  //         </p>
+  //       </div>
+  //     </div>
+  //   );
+  // }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 md:p-6">
-      <div className="max-w-6xl mx-auto">
+    <div className=" bg-gray-50 dark:bg-gray-900 p-4 md:p-6">
+      <div className=" mx-auto">
         <div className="mb-8">
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-800 dark:text-white mb-2">
+          <h1 className="text-md md:text-md font-bold text-gray-800 dark:text-white mb-2">
             Theme Customization
           </h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            Customize your application's color scheme. Changes are saved to the database and applied globally.
+          <p className="text-gray-600 dark:text-gray-400 text-sm">
+            Customize your application's color scheme. Changes are saved and
+            applied globally to all users.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          {colorVariables.map((color) => (
-            <ColorPicker key={color.key} color={color} />
-          ))}
-        </div>
+        {isLoading ? (
+          <div className=" flex items-center justify-center bg-gray-50 dark:bg-gray-900 mt-4">
+            <div className="w-full p-6 space-y-6">
+              {/* Page title shimmer */}
+              {/* <div className="h-6 w-1/3 rounded-md bg-gray-300 dark:bg-gray-700 animate-pulse"></div>
+              <div className="h-4 w-2/3 rounded-md bg-gray-200 dark:bg-gray-600 animate-pulse"></div> */}
 
-        <div className="flex flex-wrap gap-4 p-6 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
-          <button
-            onClick={saveTheme}
-            disabled={isUpdating}
-            className="px-6 py-3 bg-primary-500 hover:bg-primary-600 disabled:bg-gray-400 text-white rounded-lg font-medium transition-colors flex items-center justify-center"
-          >
-            {isUpdating ? (
-              <>
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                Saving...
-              </>
-            ) : (
-              "Save Theme"
-            )}
-          </button>
-
-          <button
-            onClick={resetTheme}
-            disabled={isUpdating}
-            className="px-6 py-3 bg-gray-100 hover:bg-gray-200 disabled:bg-gray-300 text-gray-800 rounded-lg font-medium transition-colors dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-white"
-          >
-            Reset to Default
-          </button>
-
-          <button
-            onClick={refreshFromAPI}
-            disabled={isUpdating}
-            className="px-6 py-3 bg-secondary-500 hover:bg-secondary-600 text-white rounded-lg font-medium transition-colors"
-          >
-            Refresh from API
-          </button>
-
-          {isSaved && (
-            <div className="ml-auto flex items-center px-4 py-3 bg-green-50 text-green-700 rounded-lg border border-green-200 dark:bg-green-500/20 dark:text-green-400">
-              ✅ Theme saved successfully!
-            </div>
-          )}
-        </div>
-
-        {/* Live Preview */}
-        <div className="mt-8 p-6 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
-          <h2 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">
-            Live Preview
-          </h2>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-4">
-              <button className="w-full px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white rounded transition-colors">
-                Primary Button
-              </button>
-              <div className="p-4 bg-primary-50 dark:bg-primary-500/20 rounded">
-                <p className="text-primary-700 dark:text-primary-300">Primary background</p>
+              {/* 3 color pickers shimmer */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {[1, 2, 3].map((i) => (
+                  <div
+                    key={i}
+                    className="rounded-lg bg-gray-100 dark:bg-gray-800 p-6 space-y-4 animate-pulse"
+                  >
+                    <div className="h-4 w-1/2 rounded-md bg-gray-300 dark:bg-gray-700"></div>
+                    <div className="h-3 w-2/3 rounded-md bg-gray-200 dark:bg-gray-600"></div>
+                    <div className="h-10 w-full rounded-md bg-gray-300 dark:bg-gray-700"></div>
+                    <div className="h-6 w-1/2 rounded-md bg-gray-200 dark:bg-gray-600"></div>
+                  </div>
+                ))}
               </div>
-            </div>
-            
-            <div className="space-y-4">
-              <button className="w-full px-4 py-2 bg-secondary-500 hover:bg-secondary-600 text-white rounded transition-colors">
-                Secondary Button
-              </button>
-              <div className="p-4 bg-secondary-50 dark:bg-secondary-500/20 rounded">
-                <p className="text-secondary-700 dark:text-secondary-300">Secondary background</p>
+
+              {/* Buttons shimmer */}
+              <div className="flex gap-4">
+                <div className="h-10 w-40 rounded-lg bg-gray-300 dark:bg-gray-700 animate-pulse"></div>
+                <div className="h-10 w-40 rounded-lg bg-gray-200 dark:bg-gray-600 animate-pulse"></div>
               </div>
             </div>
           </div>
-        </div>
+        ) : (
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+              {colorVariables.map((color) => (
+                <ColorPicker key={color.key} color={color} />
+              ))}
+            </div>
+
+            <div className="flex flex-wrap gap-4 p-6 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+              <button
+                onClick={saveTheme}
+                disabled={isUpdating}
+                className="px-6 py-3 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 text-white rounded-lg font-medium transition-colors flex items-center justify-center"
+              >
+                {isUpdating ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Saving...
+                  </>
+                ) : (
+                  "Save Theme"
+                )}
+              </button>
+              <button
+                onClick={refreshFromAPI}
+                disabled={isUpdating}
+                className="px-6 py-3 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 text-white rounded-lg font-medium transition-colors"
+              >
+                Refresh from API
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
