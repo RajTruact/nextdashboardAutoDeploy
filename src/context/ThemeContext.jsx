@@ -6,8 +6,9 @@ const ThemeContext = createContext(undefined);
 
 // Catalyst API endpoints
 const CATALYST_API = {
-  get: "https://your-catalyst-domain.com/theme",
-  update: "https://your-catalyst-domain.com/theme"
+  get: "https://first-test-10103020174.development.catalystappsail.com/theme",
+  update:
+    "https://first-test-10103020174.development.catalystappsail.com/theme",
 };
 
 export const ThemeProvider = ({ children }) => {
@@ -25,9 +26,9 @@ export const ThemeProvider = ({ children }) => {
     try {
       setIsLoading(true);
       const response = await axios.get(CATALYST_API.get);
-      
+
       const result = response.data;
-      
+
       // Extract colors from Catalyst response format
       if (result && result.length > 0) {
         const themeData = result[0];
@@ -36,11 +37,11 @@ export const ThemeProvider = ({ children }) => {
           secondaryColor: themeData.secondaryColor || "#8b5cf6",
           tertiaryColor: themeData.tertiaryColor || "#10b981",
         };
-        
+
         setColors(newColors);
         applyColorVariables(newColors);
         localStorage.setItem("themeColors", JSON.stringify(newColors));
-        
+
         return newColors;
       }
     } catch (error) {
@@ -63,7 +64,7 @@ export const ThemeProvider = ({ children }) => {
   const updateThemeInAPI = async (newColors) => {
     try {
       const response = await axios.patch(CATALYST_API.update, newColors);
-      
+
       if (response.data) {
         console.log("Theme updated successfully in Catalyst");
         return true;
@@ -87,7 +88,10 @@ export const ThemeProvider = ({ children }) => {
       }
 
       if (colorObj.secondaryColor) {
-        root.style.setProperty("--color-secondary-500", colorObj.secondaryColor);
+        root.style.setProperty(
+          "--color-secondary-500",
+          colorObj.secondaryColor
+        );
         generateAndApplyShades(colorObj.secondaryColor, "secondary");
       }
 
@@ -152,7 +156,7 @@ export const ThemeProvider = ({ children }) => {
   const updateColors = async (newColors) => {
     try {
       const updatedColors = { ...colors, ...newColors };
-      
+
       // Update local state immediately
       setColors(updatedColors);
       localStorage.setItem("themeColors", JSON.stringify(updatedColors));
@@ -160,7 +164,6 @@ export const ThemeProvider = ({ children }) => {
 
       // Update in Catalyst API
       await updateThemeInAPI(updatedColors);
-      
     } catch (error) {
       console.error("Failed to update theme colors:", error);
       throw error;
@@ -180,7 +183,7 @@ export const ThemeProvider = ({ children }) => {
         updateColors,
         refreshTheme,
         isInitialized,
-        isLoading
+        isLoading,
       }}
     >
       {children}
@@ -201,10 +204,15 @@ function hexToRgb(hex) {
 }
 
 function rgbToHex(r, g, b) {
-  return "#" + [r, g, b].map(x => {
-    const hex = x.toString(16);
-    return hex.length === 1 ? "0" + hex : hex;
-  }).join("");
+  return (
+    "#" +
+    [r, g, b]
+      .map((x) => {
+        const hex = x.toString(16);
+        return hex.length === 1 ? "0" + hex : hex;
+      })
+      .join("")
+  );
 }
 
 function lightenColor(rgb, amount) {
